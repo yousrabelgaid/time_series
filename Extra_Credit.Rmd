@@ -1,0 +1,108 @@
+---
+title: "Extra Credit Assignment"
+author: "Yousra Belgaid"
+date: "2023-04-25"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tseries)
+library(forecast)
+```
+
+Read and Display the Data
+
+```{r}
+rocket<-read.table("~/Desktop/Stat 463/Rocket_Motors-1.txt", header = TRUE)
+names(rocket)
+attach(rocket)
+length(Price)
+```
+
+1.  The following time series plot shows a clear upward trend of the data. There is clearly a trend element throughout the plot. The ACF plot shows that there are significant autocorrelations throughout. Therefore the data should be differenced in order to remove autocorrelation.
+
+    The ARIMA model's two major assumptions are that the dataset is **(1)** stationary and **(2)** univariate. The beginning step is running a unit root test to examine how a time series dataset being determined by a trend. Such a test has a null hypothesis that the time series is nonstationary. If a unit root does exist, then the time series is nonstationary. Moreover, based on the Augmented Dickey-Fuller Test which is a stationary Unit Root test considers the null hypothesis that the data is non-stationary. In the case of Rocket Motors plot, it is clearly not stationary because the p-value of 0.99 \> the alpha value of 0.05.
+
+    Another Unit test used is the KPSS Test for Level Stationarity where the null hypothesis consideres the time series is trend stationary. If the p-value of the test is less than the significance level (α = .05) then we reject the null hypothesis and conclude that the time series is not stationary. In this case, our p-value is 0.01 \< 0.05, therefore, we reject the null and conclude that our data is not stationary.
+
+```{r}
+plot(Price, pch = 19, cex = 0.5, type = "o", xlab = "Day", ylab = "Stock Price in US Dollar", main = "Time Series Plot of Rocket Motors Closing Stock Price
+     from 01JAN2020 to 26JAN2022")
+series <- ts(rocket$Price,frequency=1)
+acf(series, type = "correlation")
+acf(series, type = "partial")
+adf.test(series)
+kpss.test(series)
+```
+
+```{r}
+price_diff = rocket$Price[2:length(rocket$Price)] - rocket$Price[1:length(rocket$Price)-1]
+plot(price_diff, pch = 19, cex = 0.5, type = "o", xlab = "Date", ylab = "Stock Price in US Dollar", main = "Time Series Plot of Change in 
+Rocket Motors Closing Stock Price
+     from 01JAN2020 to 26JAN2022")
+acf(price_diff, type = "correlation")
+acf(price_diff, type = "partial")
+```
+
+```{r}
+price_diff2 = price_diff[2:length(price_diff)] - price_diff[1:length(price_diff)-1]
+plot(price_diff2, pch = 19, cex = 0.5, type = "o", xlab = "Day", ylab = "Stock Price in US Dollar", main = "Time Series Plot of Change in Rocket 
+  Motors Closing Stock Price from 
+     01JAN2020 to 26JAN2022")
+acf(price_diff2, type = "partial")
+acf(price_diff2, type = "correlation")
+
+change_diff2<-ts(price_diff2, frequency = 1)
+adf.test(change_diff2)
+kpss.test(change_diff2)
+```
+
+2.  First, in order to fit an ARIMA(p,q,d) model, the time series plot needs to satisfy stationarity assumptions. In this case, we used Differencing: Take the first-order difference (subtracting each observation from the previous observation) and second-order difference (subtracting each first-order difference from the previous first-order difference) until the series becomes stationary.
+
+    By then conducting the adf test, we were able to find that p-value is 0.01 which is less than the alpha value of 0.05, therefore, we can assume that the time series is stationary. ARIMA models have three components: the order of autoregression, degree of differencing, and the order of the moving average. In this case, we used an order differencing of 2 to assume stationarity so we will use a (0,2,0) model. To find the AR (**Autoregressive terms are lagged values of the variable being predicted**) and MA (**Moving average terms are lagged forecast errors, which represent the difference between the predicted value and the actual value**) components, I used the 2nd ordered difference Price with the lowest AIC value to determine the best fit.
+
+    The log-likelihood values of the third model is higher than that of the first model, which indicates that it fits the data better. However, the AIC (Akaike Information Criterion) values of the third model is lower than that of the first model, which indicates that it provides a better trade-off between goodness of fit and model complexity. Therefore, based on the provided output, it seems that the third model with an AR order of 3 is the best model among the three, as it has the lowest AIC value. Similarly, when fitting the MA model, the third model with an MA order of 3 is the best model among the three, as it has the lowest AIC value. The ACF plot of the residuals from the ARIMA(3,2,3) model shows that all auto-correlations are within the threshold limits, indicating that the residuals are behaving like white noise. A portmanteau test returns a large p-value, also suggesting that the residuals are white noise.Therefore, the best ARIMA model is the ARIMA(3,2,3).
+
+    The characteristic polynomial of the AR part is denoted by ϕ(B), where B is the backward shift operator. The roots of this polynomial are the values of B that solve the equation ϕ(B) = 0. These roots are also known as the autoregressive roots, and they provide information about the dynamics of the AR process. Similarly, the characteristic polynomial of the MA part is denoted by θ(B), and its roots are the values of B that solve the equation θ(B) = 0. These roots are also known as the moving average roots, and they provide information about the dynamics of the MA process. When fitting an ARIMA model, it is important to ensure that the roots of both ϕ(B) and θ(B) lie inside the unit circle. This is because a stationary ARIMA model must have all of its roots lie inside the unit circle, and an invertible ARIMA model must have all of its MA roots lie inside the unit circle. In the provided output, all of the red dots representing the roots of ϕ(B) and θ(B) are inside the unit circle, which indicates that the fitted ARIMA model is both stationary and invertible.
+
+    I then used the auto.arima() function to justify that the model I chose is the appropriate model. By using this function, I was also able to get that the model is best fitted as the ARIMA(3,2,3) model.
+
+```{r}
+AR1b = arima(x = price_diff2, order = c(1, 0, 0), method = "ML", include.mean = FALSE)
+print(AR1b)
+
+AR2 = arima(x = price_diff2, order = c(2, 0, 0), method = "ML", include.mean = FALSE)
+print(AR2)
+
+AR3 = arima(x = price_diff2, order = c(3, 0, 0), method = "ML", include.mean = FALSE)
+print(AR3)
+```
+
+```{r}
+MA1 = arima(x = price_diff2, order = c(0, 0, 1), method = "ML", include.mean = FALSE)
+print(MA1)
+
+MA2 = arima(x = price_diff2, order = c(0, 0, 2), method = "ML", include.mean = FALSE)
+print(MA2)
+
+MA3 = arima(x = price_diff2, order = c(0, 0, 3), method = "ML", include.mean = FALSE)
+print(MA3)
+
+```
+
+```{r}
+(fit <- Arima(change_diff2, order=c(3,2,3)))
+checkresiduals(fit)
+autoplot(forecast(fit))
+autoplot(fit)
+```
+
+```{r}
+auto.arima(series)
+
+```
+
+3.  **Yt = --0.0505Yt-1 + 0.3119Yt-2 + 0.5983Yt-2 +et + 0.7074et-1 + 0.3866et-2 - 0.2218et-3**
